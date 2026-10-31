@@ -3,7 +3,7 @@
 
 1. Project Overview
 
-UAC Care Load Analytics is a data analytics and visualization project designed to monitor the care load across the Unaccompanied Alien Children (UAC) Program.
+UAC Care Load Analytics is a data analytics  and data science and visualization project designed to monitor the care load across the Unaccompanied Alien Children (UAC) Program.
 
 The project analyzes daily operational data related to children in CBP custody, transfers to HHS care, and discharges from HHS care. It transforms raw data into meaningful insights through interactive visualizations, performance indicators, trend analysis, and illustrative forecasting.
 
