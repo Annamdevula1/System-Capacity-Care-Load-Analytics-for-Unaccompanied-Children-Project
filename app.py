@@ -82,26 +82,16 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# ---------- Sidebar ----------
 with st.sidebar:
     st.markdown("## UAC Analytics")
     st.caption("Data-driven operational monitoring")
-    uploaded = st.file_uploader("Upload final cleaned CSV", type=["csv"])
     st.markdown("---")
     st.markdown("### Dashboard controls")
-    st.caption("Filters become available after uploading the dataset.")
 
-if uploaded is None:
-    st.info("Upload **UAC_Final_Cleaned_Data.csv** in the sidebar to open the dashboard.")
-    st.markdown("#### Dashboard modules")
-    c1, c2, c3 = st.columns(3)
-    c1.markdown("**01 · System overview**  \nCare-load KPIs and date coverage")
-    c2.markdown("**02 · Care pipeline**  \nCBP vs HHS load and transfer/discharge trends")
-    c3.markdown("**03 · Pressure signals**  \nRolling averages, backlog indicator and data-quality flags")
-    st.stop()
-
-
+# ---------- Automatic CSV Loading ----------
 try:
-    raw_df = pd.read_csv(uploaded)
+    raw_df = pd.read_csv("UAC_Final_Cleaned_Data.csv")
 
     raw_df.columns = (
         raw_df.columns
@@ -114,6 +104,7 @@ try:
 except Exception as e:
     st.error(f"Could not read this dataset: {e}")
     st.stop()
+
 if df.empty:
     st.error("No usable rows were found. Check the Date column and the CSV file.")
     st.stop()
