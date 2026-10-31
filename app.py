@@ -99,13 +99,21 @@ if uploaded is None:
     c3.markdown("**03 · Pressure signals**  \nRolling averages, backlog indicator and data-quality flags")
     st.stop()
 
+
 try:
     raw_df = pd.read_csv(uploaded)
+
+    raw_df.columns = (
+        raw_df.columns
+        .str.strip()
+        .str.replace("*", "", regex=False)
+    )
+
     df = prepare_data(raw_df)
+
 except Exception as e:
     st.error(f"Could not read this dataset: {e}")
     st.stop()
-
 if df.empty:
     st.error("No usable rows were found. Check the Date column and the CSV file.")
     st.stop()
