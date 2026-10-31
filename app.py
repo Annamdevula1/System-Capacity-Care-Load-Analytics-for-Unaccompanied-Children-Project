@@ -164,6 +164,13 @@ st.subheader("System load overview")
 st.markdown(f"<div class='section-note'>Selected period: {start_date:%d %b %Y} — {end_date:%d %b %Y} · {len(filtered):,} recorded days</div>", unsafe_allow_html=True)
 
 k1, k2, k3, k4 = st.columns(4)
+# Care Load Growth Rate KPI
+growth_rate = latest["Care Load Growth Rate (%)"]
+
+st.metric(
+    "Care Load Growth Rate",
+    f"{growth_rate:.2f}%" if pd.notna(growth_rate) else "N/A"
+)
 k1.metric("Current recorded system load", f"{latest['Total System Load']:,.0f}")
 k2.metric("Average system load", f"{avg_load:,.0f}")
 k3.metric("Peak system load", f"{peak_load:,.0f}")
@@ -197,10 +204,13 @@ def aggregate(frame, gran):
 plot_df = aggregate(filtered, granularity)
 x_title = "Date"
 
-tab1, tab2, tab3, tab4 = st.tabs([
-    "System overview", "CBP & HHS comparison", "Intake & backlog", "Data quality"
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "System overview",
+    "CBP & HHS comparison",
+    "Intake & backlog",
+    "Data quality",
+    "Growth & Forecast"
 ])
-
 with tab1:
     st.markdown("### Total system care load")
     fig = go.Figure()
@@ -306,6 +316,142 @@ with tab4:
 
     st.markdown("### Filtered records")
     st.dataframe(filtered, use_container_width=True, hide_index=True)
+# ---------- Growth & Forecast ----------
+with tab5:
+
+    st.markdown("### Early vs Late Timeline Comparison")
+
+    mid = len(df) // 2
+
+    early = df.iloc[:mid]
+    late = df.iloc[mid:]
+
+    comparison = pd.DataFrame({
+        "Period": ["Early Period", "Late Period"],
+        "Average System Load": [
+            early["Total System Load"].mean(),
+            late["Total System Load"].mean()
+        ]
+    })
+
+    fig = px.bar(
+        comparison,
+        x="Period",
+        y="Average System Load",
+        color="Period",
+        title="Early vs Late Average Care Load",
+        template="plotly_white"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # High Load Period Detection
+    st.markdown("### Prolonged High-Load Detection")
+
+    threshold = df["Total System Load"].quantile(0.90)
+
+    high_load = df[
+        df["Total System Load"] >= threshold
+    ].copy()
+
+    high_load["High Load Group"] = (
+        high_load[DATE].diff().dt.days.ne(1)
+    ).cumsum()
+
+    prolonged = (
+        high_load.groupby("High Load Group")
+        .filter(lambda x: len(x) >= 7)
+    )
+
+    st.metric(
+        "Prolonged High-Load Days",
+        len(prolonged)
+    )
+
+    st.caption(
+        "High load is identified using the dataset's "
+        "90th percentile reference and a minimum of 7 "
+        "consecutive recorded high-load days."
+    )
+
+    if not prolonged.empty:
+        st.dataframe(
+            prolonged[[DATE, "Total System Load"]],
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.info("No prolonged high-load period detected.")
+
+    # Forecasting
+    st.markdown("### 14-Day Care Load Trend Projection")
+
+    forecast_data = (
+        df[["Total System Load"]]
+        .dropna()
+        .tail(30)
+    )
+
+    if len(forecast_data) >= 7:
+
+        x = np.arange(len(forecast_data))
+        y = forecast_data["Total System Load"].values
+
+        coefficients = np.polyfit(x, y, 1)
+
+        future_x = np.arange(
+            len(forecast_data),
+            len(forecast_data) + 14
+        )
+
+        predicted = np.polyval(
+            coefficients, future_x
+        )
+
+        future_dates = pd.date_range(
+            start=df[DATE].max() + pd.Timedelta(days=1),
+            periods=14,
+            freq="D"
+        )
+
+        forecast_df = pd.DataFrame({
+            "Date": future_dates,
+            "Projected System Load": np.maximum(predicted, 0)
+        })
+
+        fig = px.line(
+            forecast_df,
+            x="Date",
+            y="Projected System Load",
+            title="14-Day Linear Trend Projection",
+            template="plotly_white"
+        )
+
+        fig.update_traces(
+            line=dict(dash="dash", width=3)
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        st.dataframe(
+            forecast_df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.caption(
+            "Illustrative linear trend projection based on "
+            "the last 30 available observations. "
+            "Not an official capacity forecast."
+        )
+
+    else:
+        st.warning(
+            "Insufficient historical data for projection."
+        )
 
 # ---------- Export ----------
 st.markdown("---")
